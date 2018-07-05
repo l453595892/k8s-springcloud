@@ -1,0 +1,38 @@
+server:
+  port: ${PORT:10888}
+eureka:
+    instance:
+        leaseExpirationDurationInSeconds: 2
+        leaseRenewalIntervalInSeconds: 1
+        preferIpAddress: true
+    client:
+        registerWithEureka: true
+        fetchRegistry: true
+        registryFetchIntervalSeconds: 3
+        serviceUrl:
+            defaultZone: ${DISCOVERY_URL:http://localhost:8761/eureka/)}
+spring:
+  rabbitmq:
+    host: ${rabbitmq_host:rabbitmq-server}
+    port: ${rabbitmq_port:5672}
+    username: ${rabbitmq_username:chris}
+    password: ${rabbitmq_password:123123}
+    virtual-host: prontera
+    listener:
+      retry:
+        enabled: true
+    template:
+      retry:
+        enabled: true
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          searchLocations: /tmp/config
+  application:
+    name: ${SERVICE_NAME:config-server}
+management:
+  security:
+    enabled: false

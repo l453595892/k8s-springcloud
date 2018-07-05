@@ -1,0 +1,26 @@
+server:
+    port: ${PORT:8761}
+
+spring:
+  application:
+    name: ${SERVICE_NAME:eureka}
+
+eureka:
+    environment: ${ENV:kubernetes}
+    datacenter: ${DATACENTER:default}
+    instance:
+        leaseExpirationDurationInSeconds: ${leaseExpirationDurationInSeconds:2}
+        leaseRenewalIntervalInSeconds: ${leaseRenewalIntervalInSeconds:1}
+    client:
+        registerWithEureka: ${registerWithEureka:true}
+        fetchRegistry: ${fetchRegistry:true}
+        registryFetchIntervalSeconds: ${registryFetchIntervalSeconds:3}
+        serviceUrl:
+            defaultZone: ${DEFAULT_ZONE:http://localhost:8761/eureka/)}
+    server:
+        peerEurekaNodesUpdateIntervalMs: ${peerEurekaNodesUpdateIntervalMs:3000}
+        evictionIntervalTimerInMs: ${evictionIntervalTimerInMs:500}
+        responseCacheUpdateIntervalMs: ${responseCacheUpdateIntervalMs:500}
+        responseCacheAutoExpirationInSeconds: ${responseCacheAutoExpirationInSeconds:1}
+        enable-self-preservation: ${enableSelfpreservation:false}
+        eviction-interval-timer-in-ms: ${evictionIntervalTimerInMs:500}

@@ -1,0 +1,52 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: rabbitmq-server
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+	  ekos-app: rabbitmq-server
+  template:
+    metadata:
+      labels:
+        ekos-app: rabbitmq-server
+    spec:
+      containers:
+      - env:
+        - name: TZ
+          value: Asia/Shanghai
+        - name: RABBITMQ_DEFAULT_USER
+          value: chris
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "123123"
+        - name: RABBITMQ_DEFAULT_VHOST
+          value: prontera
+        image: registry.ekos.local/library/rabbitmq:3.6.6-management
+        name: rabbitmq-server
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1G
+          requests:
+            cpu: 500m
+            memory: 500M
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-server
+  namespace: test
+spec:
+  ports:
+  - name: "5672"
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+  - name: "15672"
+    port: 15672
+    protocol: TCP
+    targetPort: 15672
+  selector:
+    ekos-app: rabbitmq-server

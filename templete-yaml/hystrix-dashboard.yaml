@@ -1,0 +1,104 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: hystrix-dashboard
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      ekos-app: ekos-logging-server
+  template:
+    metadata:
+      labels:
+        ekos-app: ekos-logging-server
+    spec:
+      initContainers:
+      - name: init-eureka
+        image: registry.ekos.local/library/hystrix-dashboard
+        command:
+        - sh
+        - "-c"
+        - |
+          set -ex
+          
+          PEERS=$(nslookup eureka 2>/dev/null | grep Address | awk '{print $4}' | awk '{printf("http://%s:8761/,",$1)}')
+          DEFAULT_ZONE=${PEERS%,}
+          arr=${DEFAULT_ZONE//,/ }
+          for address in $arr; do
+            info=`curl -s -m 10 --connect-timeout 10 -I $address`
+              code=`echo $info|grep "HTTP"|awk '{print $2}'`
+              if [ "$code" == "200" ];then
+                 echo "...........................$code"
+              else
+                 echo "...........................$code"
+                 exit 1
+               fi
+          done
+      containers:
+      - env:
+        - name: CONFIG_SERVICE_NAME
+          value: config-server
+        image: registry.ekos.local/library/hystrix-dashboard
+        name: hystrix-dashboard
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1G
+          requests:
+            cpu: 500m
+            memory: 500M
+        volumeMounts:
+        - name: config
+          mountPath: /
+      volumes:
+      - name: config
+        configMap:
+          name: hystrix-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hystrix-config
+  namespace: test
+data:
+  application.yml: |
+   server:
+     port: 8193
+   turbine:
+     app-config: consumer-demo
+     aggregator:
+       clusterConfig: prontera
+     cluster-name-expression: metadata['cluster']
+   eureka:
+       instance:
+           leaseExpirationDurationInSeconds: 2
+           leaseRenewalIntervalInSeconds: 1
+           preferIpAddress: true
+       client:
+           registerWithEureka: true
+           fetchRegistry: true
+           registryFetchIntervalSeconds: 3
+           serviceUrl:
+               defaultZone: http://eureka:8761/eureka/
+   spring:
+     application:
+       name: hystrix-dashboard
+     cloud:
+       loadbalancer:
+         retry:
+           enabled: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hystrix-dashboard
+  namespace: test
+spec:
+  ports:
+  - name: "8193"
+    port: 8193
+    protocol: TCP
+    targetPort: 8193
+  selector:
+    ekos-app: ekos-logging-server

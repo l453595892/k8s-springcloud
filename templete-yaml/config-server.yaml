@@ -1,0 +1,149 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      ekos-app: config-server
+  template:
+    metadata:
+      labels:
+        ekos-app: config-server
+    spec:
+      initContainers:
+      - name: init-eureka
+        image: registry.ekos.local/library/config-server
+        command:
+        - sh
+        - "-c"
+        - |
+          set -ex
+          
+          PEERS=$(nslookup eureka 2>/dev/null | grep Address | awk '{print $4}' | awk '{printf("http://%s:8761/,",$1)}')
+          DEFAULT_ZONE=${PEERS%,}
+          arr=${DEFAULT_ZONE//,/ }
+          for address in $arr; do
+            info=`curl -s -m 10 --connect-timeout 10 -I $address`
+              code=`echo $info|grep "HTTP"|awk '{print $2}'`
+              if [ "$code" == "200" ];then
+                 echo "...........................$code"
+              else
+                 echo "...........................$code"
+                 exit 1
+               fi
+          done
+      - name: init-rabbitmq
+        image: registry.ekos.local/library/config-server
+        command:
+        - sh
+        - "-c"
+        - | 
+          set -ex
+          
+          PEERS=$(nslookup rabbitmq-server 2>/dev/null | grep Address | awk '{print $4}' | awk '{printf("http://%s:15672/,",$1)}')
+          DEFAULT_ZONE=${PEERS%,}
+          arr=${DEFAULT_ZONE//,/ }
+          for address in $arr; do
+              info=`curl -s -m 10 --connect-timeout 10 -I $address`
+              code=`echo $info|grep "HTTP"|awk '{print $2}'`
+              if [ "$code" == "200" ];then
+                 echo "...........................$code"
+              else
+                 echo "...........................$code"
+                 exit 1
+              fi
+          done
+      containers:
+      - env:
+        - name: DISCOVERY_SERVICE_NAME
+          value: eureka
+        - name: rabbitmq_host
+          value: rabbitmq-server
+        - name: rabbitmq_port
+          value: "5672"
+        - name: rabbitmq_username
+          value: chris
+        - name: rabbitmq_password
+          value: "123123"
+        image: registry.ekos.local/library/config-server
+        name: config-server
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1G
+          requests:
+            cpu: 500m
+            memory: 500M
+        volumeMounts:
+        - name: config
+          mountPath: /tmp/config
+      volumes:
+      - name: config
+        configMap:
+          name: eureka-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eureka-config
+  namespace: test
+data:
+  provider-demo.yml: |
+    server:
+     port: 8888
+    eureka:
+     instance:
+       leaseExpirationDurationInSeconds: 2
+       leaseRenewalIntervalInSeconds: 1
+       preferIpAddress: true
+       metadata-map:
+         cluster: prontera 
+     client:
+       registerWithEureka: true
+       fetchRegistry: true
+       registryFetchIntervalSeconds: 3
+       serviceUrl:
+         defaultZone: http://eureka:8761/eureka/
+    spring:
+     application:
+       name: provider-demo
+     zipkin:
+      base-url: http://zipkin-server:9411/
+  consumer-demo.yml: |
+    server:
+     port: 8888
+    eureka:
+     instance:
+       leaseExpirationDurationInSeconds: 2
+       leaseRenewalIntervalInSeconds: 1
+       preferIpAddress: true
+       metadata-map:
+         cluster: prontera 
+     client:
+       registerWithEureka: true
+       fetchRegistry: true
+       registryFetchIntervalSeconds: 3
+       serviceUrl:
+         defaultZone: http://eureka:8761/eureka/
+    spring:
+     application:
+       name: consumer-demo
+     zipkin:
+      base-url: http://zipkin-server:9411/       
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: test
+spec:
+  ports:
+  - name: "10888"
+    port: 10888
+    protocol: TCP
+    targetPort: 10888
+  selector:
+    ekos-app: config-server

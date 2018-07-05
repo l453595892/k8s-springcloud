@@ -1,0 +1,39 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: zipkin-server
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      ekos-app: zipkin-server
+  template:
+    metadata:
+      labels:
+        ekos-app: zipkin-server
+    spec:
+      containers:
+      - image: registry.ekos.local/library/zipkin-server
+        name: zipkin-server
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1G
+          requests:
+            cpu: 500m
+            memory: 500M
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin-server
+  namespace: test
+spec:
+  ports:
+  - name: "9411"
+    port: 9411
+    protocol: TCP
+    targetPort: 9411
+  selector:
+    ekos-app: zipkin-server
